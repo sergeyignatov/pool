@@ -54,7 +54,9 @@ type Pool struct {
 	worker_wg            sync.WaitGroup
 	supervisor_wg        sync.WaitGroup
 }
-
+func (pool *Pool) SetInterval(d time.Duration) {
+    pool.interval = d
+}
 // subworker catches any panic while running the job.
 func (pool *Pool) subworker(job *Job) {
 	defer func() {
@@ -76,7 +78,7 @@ WORKER_LOOP:
 		pool.job_wanted_pipe <- job_pipe
 		job := <-job_pipe
 		if job == nil {
-			time.Sleep(pool.interval * time.Millisecond)
+			time.Sleep(pool.interval)
 		} else {
 			pool.subworker(job)
 			pool.done_pipe <- job
@@ -104,7 +106,7 @@ func New(workers int) (pool *Pool) {
 	pool.stats_wanted_pipe = make(chan chan stats)
 	pool.worker_kill_pipe = make(chan bool)
 	pool.supervisor_kill_pipe = make(chan bool)
-	pool.interval = 1
+	pool.interval = 1 * time.Second
 	// start the supervisor here so we can accept jobs before a Run call
 	pool.startSupervisor()
 	return
@@ -239,7 +241,7 @@ func (pool *Pool) Wait() {
 		if !<-working_pipe {
 			break
 		}
-		time.Sleep(pool.interval * time.Millisecond)
+		time.Sleep(pool.interval)
 	}
 }
 
@@ -270,7 +272,7 @@ func (pool *Pool) WaitForJob() *Job {
 		}
 		if job == (*Job)(nil) {
 			// no result available right now but there are jobs running
-			time.Sleep(pool.interval * time.Millisecond)
+			time.Sleep(pool.interval)
 		} else {
 			break
 		}
